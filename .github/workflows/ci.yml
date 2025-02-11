@@ -1,0 +1,37 @@
+name: Build and deploy Sanity Studio
+on:
+  push:
+    branches:
+      - main
+jobs:
+    build-and-deploy:
+        name: Build and deploy
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+            - name: Install dependencies
+              uses: actions/setup-node@v4
+              with:
+                node-version: '20.x'
+            - name: Install Project dependencies
+              run: yarn install
+            - name: Install Sanity CLI
+              run: yarn global add @sanity/cli
+            - name: Build Sanity Studio
+              run: |
+                npm run type-check
+                npm run lint -- --max-warnings 0
+                sanity build
+            - name: Verify Build
+              run: ls -al dist
+            # https://github.com/easingthemes/ssh-deploy
+            - name: Rsync files to server
+              uses: easingthemes/ssh-deploy@v5.0.3
+              with:
+                ARGS: "-vzr"
+                SSH_PRIVATE_KEY: ${{ secrets.SANITY_CMS_DREAMHOST }}
+                REMOTE_HOST: ${{ secrets.DH_HOST }}
+                REMOTE_USER: ${{ secrets.DH_USERNAME }}
+                SOURCE: "dist/"
+                TARGET: ${{ secrets.DH_TARGET }}
